@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Surprise 💖</title>
+<style>
+    body {
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #ffc0cb;
+        font-family: Arial, sans-serif;
+        position: relative;
+    }
+
+    .emoji {
+        position: absolute;
+        font-size: 50px;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.1s linear;
+    }
+
+    #instruction {
+        position: fixed;
+        top: 20px;
+        width: 100%;
+        text-align: center;
+        font-size: 28px;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 2px 2px 5px #000;
+        z-index: 1000;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    #messageBox {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        background: #ffe6f0; /* soft pink */
+        padding: 40px;
+        border-radius: 25px;
+        width: 80%;
+        max-width: 600px;
+        box-shadow: 0 0 30px rgba(255,105,180,0.7);
+        text-align: center;
+        font-size: 18px;
+        line-height: 1.6;
+        z-index: 2000;
+        border: 2px solid #ff69b4; /* pink border */
+    }
+
+    .fallingEmoji {
+        position: absolute;
+        font-size: 30px;
+        pointer-events: none;
+    }
+
+    .trail {
+        position: absolute;
+        font-size: 20px;
+        pointer-events: none;
+        color: #ff69b4;
+        animation: fadeOut 1s forwards;
+    }
+
+    @keyframes fadeOut {
+        0% { opacity: 1; transform: translateY(0) scale(1); }
+        100% { opacity: 0; transform: translateY(30px) scale(0.5); }
+    }
+
+    #score {
+        position: fixed;
+        top: 70px;
+        width: 100%;
+        text-align: center;
+        font-size: 22px;
+        color: white;
+        text-shadow: 1px 1px 3px #000;
+        z-index: 1000;
+    }
+</style>
+</head>
+<body>
+
+<div id="instruction">🌷 Click all the tulips! 🌷</div>
+<div id="score">Remaining: 10</div>
+<div id="messageBox"></div>
+
+<audio id="clickSound">
+    <source src="https://freesound.org/data/previews/82/82921_1022651-lq.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const tulipCount = 10;
+const planeCount = 5;
+const capybaraCount = 10; // updated
+
+let stage = 1;
+let tulips = [];
+let planes = [];
+let capybaras = [];
+let remaining = tulipCount;
+
+// Randomly select which capybara will trigger the message
+let capyMessageIndex = Math.floor(Math.random()*capybaraCount);
+
+// Play click sound
+function playClick() {
+    const audio = document.getElementById('clickSound');
+    audio.currentTime = 0;
+    audio.play();
+}
+
+// Helper functions
+function random(min, max) { return Math.random() * (max - min) + min; }
+
+// Update score
+function updateScore() {
+    document.getElementById('score').innerText = `Remaining: ${remaining}`;
+}
+
+// Floating sway animation
+function sway(element, speed=0.5, range=10) {
+    let angle = random(0, Math.PI*2);
+    function animate() {
+        angle += speed*0.01;
+        element.style.transform = `rotate(${Math.sin(angle)*10}deg)`;
+        requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+// --- Stage 1: Tulips ---
+for(let i=0;i<tulipCount;i++){
+    let t = document.createElement('div');
+    t.className = 'emoji';
+    t.innerText = '🌷';
+    t.style.top = random(0, window.innerHeight-50)+'px';
+    t.style.left = random(0, window.innerWidth-50)+'px';
+    t.speedX = random(-1,1);
+    t.speedY = random(-1,1);
+    t.onclick = ()=>{
+        playClick();
+        t.remove();
+        tulips = tulips.filter(x=>x!==t);
+        remaining--;
+        updateScore();
+        createPopEffect(t);
+        if(tulips.length===0) startPlanes();
+    }
+    document.body.appendChild(t);
+    tulips.push(t);
+    sway(t, 0.5);
+}
+
+function animateTulips(){
+    if(stage!==1) return;
+    tulips.forEach(t=>{
+        let x = t.offsetLeft + t.speedX*2;
+        let y = t.offsetTop + t.speedY*2;
+        if(x<0 || x>window.innerWidth-50) t.speedX*=-1;
+        if(y<0 || y>window.innerHeight-50) t.speedY*=-1;
+        t.style.left = t.offsetLeft + t.speedX*2 + 'px';
+        t.style.top = t.offsetTop + t.speedY*2 + 'px';
+    });
+    requestAnimationFrame(animateTulips);
+}
+animateTulips();
+
+// --- Stage 2: Planes ---
+function startPlanes(){
+    stage=2;
+    document.getElementById('instruction').innerText = '✈️ Click all airplanes! ✈️';
+    remaining = planeCount;
+    updateScore();
+    for(let i=0;i<planeCount;i++){
+        let p = document.createElement('div');
+        p.className='emoji';
+        p.innerText='✈️';
+        p.style.top=random(50, window.innerHeight-60)+'px';
+        p.style.left=random(50, window.innerWidth-60)+'px';
+        p.speedX=random(3,6)*(Math.random()<0.5?1:-1);
+        p.speedY=random(2,4)*(Math.random()<0.5?1:-1);
+        p.onclick=()=>{
+            playClick();
+            createHeartTrail(p);
+            p.remove();
+            planes=planes.filter(x=>x!==p);
+            remaining--;
+            updateScore();
+            if(planes.length===0) startCapybaras();
+        }
+        document.body.appendChild(p);
+        planes.push(p);
+        sway(p,0.3,5);
+    }
+    animatePlanes();
+}
+
+function animatePlanes(){
+    if(stage!==2) return;
+    planes.forEach(p=>{
+        let x = p.offsetLeft + p.speedX;
+        let y = p.offsetTop + p.speedY;
+        if(x<0 || x>window.innerWidth-60) p.speedX*=-1;
+        if(y<0 || y>window.innerHeight-60) p.speedY*=-1;
+        p.style.left = x+'px';
+        p.style.top = y+'px';
+    });
+    requestAnimationFrame(animatePlanes);
+}
+
+// Heart trails behind plane clicks
+function createHeartTrail(element){
+    for(let i=0;i<5;i++){
+        let trail = document.createElement('div');
+        trail.className='trail';
+        trail.innerText='💖';
+        trail.style.left = element.offsetLeft + random(-10,10) + 'px';
+        trail.style.top = element.offsetTop + random(-10,10) + 'px';
+        document.body.appendChild(trail);
+        setTimeout(()=>trail.remove(),1000);
+    }
+}
+
+// Pop effect on click
+function createPopEffect(element){
+    let pop = document.createElement('div');
+    pop.className='trail';
+    pop.innerText='✨';
+    pop.style.left=element.offsetLeft+'px';
+    pop.style.top=element.offsetTop+'px';
+    document.body.appendChild(pop);
+    setTimeout(()=>pop.remove(),500);
+}
+
+// --- Stage 3: Capybaras ---
+function startCapybaras(){
+    stage=3;
+    document.getElementById('instruction').innerText='🐹 Click the special capybara! 🐹';
+    remaining = capybaraCount;
+    updateScore();
+    for(let i=0;i<capybaraCount;i++){
+        let c = document.createElement('div');
+        c.className='emoji';
+        c.innerText='🐹';
+        c.style.top=random(50,window.innerHeight-100)+'px';
+        c.style.left=random(50,window.innerWidth-100)+'px';
+        c.onclick=()=>{
+            playClick();
+            createPopEffect(c);
+            if(i===capyMessageIndex) showMessage(); // Only special capybara shows message
+        }
+        document.body.appendChild(c);
+        capybaras.push(c);
+        sway(c,0.6,7);
+    }
+}
+
+// --- Stage 4: Romantic Message ---
+function showMessage(){
+    let box = document.getElementById('messageBox');
+    box.innerHTML = `
+💖 Hey my love 💖<br><br>
+I hope you're seeing this, and if you are, please take a moment to feel every word.<br><br>
+I want to sincerely apologize for the things I did that hurt you.<br>
+I know I’m not a perfect man — and I know you never asked me to be one.<br>
+What I did was wrong. I let my emotions control me, and I ended up hurting you<br>
+and invalidating your feelings. That was selfish and irrational of me.<br><br>
+I am truly sorry.<br><br>
+I am always looking for ways to become a better man — especially a better partner for you.<br>
+No matter how difficult things get or what challenges come our way,<br>
+I promise to stay by your side and not walk away.<br><br>
+This is a lesson for me to grow, to fix what needs fixing,<br>
+and to love you the way you truly deserve.<br><br>
+I love you, my love. 💖
+`;
+    let scale=0;
+    function zoomIn(){
+        scale+=0.01;
+        if(scale>1) scale=1;
+        box.style.transform=`translate(-50%, -50%) scale(${scale})`;
+        if(scale<1) requestAnimationFrame(zoomIn);
+    }
+    zoomIn();
+    startFallingEmojis();
+}
+
+// Falling emojis
+function startFallingEmojis(){
+    const emojis=['🌷','✈️','🐹','💖'];
+    function createEmoji(){
+        let span = document.createElement('div');
+        span.className='fallingEmoji';
+        span.innerText=emojis[Math.floor(Math.random()*emojis.length)];
+        span.style.left=random(0,window.innerWidth)+'px';
+        span.style.top='-50px';
+        document.body.appendChild(span);
+        let speed=random(1,3);
+        function fall(){
+            let y=parseFloat(span.style.top);
+            span.style.top=y+speed+'px';
+            if(y<window.innerHeight) requestAnimationFrame(fall);
+            else span.remove();
+        }
+        fall();
+    }
+    setInterval(createEmoji,300);
+}
+
+</script>
+</body>
+</html>
